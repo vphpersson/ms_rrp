@@ -2,13 +2,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar
 from struct import pack as struct_pack, unpack as struct_unpack
+from contextlib import asynccontextmanager
 
+from msdsalgs.win32_error import Win32ErrorCode
 from rpc.connection import Connection as RPCConnection
 from rpc.utils.client_protocol_message import ClientProtocolRequestBase, ClientProtocolResponseBase, obtain_response
-from msdsalgs.win32_error import Win32ErrorCode
 
 from ms_rrp.operations import Operation
 from ms_rrp.structures.regsam import Regsam
+from ms_rrp.operations.base_reg_close_key import base_reg_close_key, BaseRegCloseKeyRequest
 
 
 @dataclass
@@ -43,6 +45,7 @@ OpenLocalMachineResponse.REQUEST_CLASS = OpenLocalMachineRequest
 OpenLocalMachineRequest.RESPONSE_CLASS = OpenLocalMachineResponse
 
 
+@asynccontextmanager
 async def open_local_machine(
     rpc_connection: RPCConnection,
     request: OpenLocalMachineRequest,
@@ -57,4 +60,17 @@ async def open_local_machine(
     :return:
     """
 
-    return await obtain_response(rpc_connection=rpc_connection, request=request, raise_exception=raise_exception)
+    open_local_machine_response: OpenLocalMachineResponse = await obtain_response(
+        rpc_connection=rpc_connection,
+        request=request,
+        raise_exception=raise_exception
+    )
+
+    yield open_local_machine_response.key_handle
+
+    await base_reg_close_key(
+        rpc_connection=rpc_connection,
+        request=BaseRegCloseKeyRequest(
+            key_handle=open_local_machine_response.key_handle
+        )
+    )

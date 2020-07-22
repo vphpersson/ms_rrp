@@ -10,6 +10,7 @@ coverage = "*"
 [packages]
 rpc = {file = "http://github.com/vphpersson/rpc/tarball/master"}
 msdsalgs = {file = "https://github.com/vphpersson/msdsalgs/tarball/master"}
+ndr = {file = "https://github.com/vphpersson/ndr/tarball/master"}
 
 [requires]
 python_version = "3.8"
