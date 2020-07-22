@@ -1,7 +1,11 @@
 from enum import IntFlag
+from itertools import chain
+
+from msdsalgs.security_types.access_mask import AccessMask
 from msdsalgs.utils import Mask
 
 
+# TODO: Add standard user rights?
 class RegsamFlag(IntFlag):
     KEY_QUERY_VALUE = 0x00000001
     KEY_SET_VALUE = 0x00000002
@@ -13,6 +17,8 @@ class RegsamFlag(IntFlag):
 
 
 Regsam = Mask.make_class(
-    int_flag_class=RegsamFlag,
-    prefix='KEY_'
+    int_flag_class=IntFlag(
+        'Regsam',
+        ((enum_entry.name, enum_entry.value) for enum_entry in chain(AccessMask, RegsamFlag))
+    )
 )
