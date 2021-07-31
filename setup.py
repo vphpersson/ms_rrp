@@ -4,8 +4,9 @@ setup(
     version='0.1',
     packages=find_packages(),
     install_requires=[
-        'rpc @ https://github.com/vphpersson/rpc/tarball/master',
-        'msdsalgs @ https://github.com/vphpersson/msdsalgs/tarball/master',
-        'ndr @ https://github.com/vphpersson/ndr/tarball/master'
+        'rpc @ git+ssh://git@github.com/vphpersson/rpc.git#egg=rpc',
+        'msdsalgs @ git+ssh://git@github.com/vphpersson/msdsalgs.git#egg=msdsalgs',
+        'msdsalgs @ git+ssh://git@github.com/vphpersson/ndr.git#egg=ndr'
+
     ]
 )
