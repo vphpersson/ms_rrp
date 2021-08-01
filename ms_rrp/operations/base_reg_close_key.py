@@ -1,8 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from abc import ABC
-from typing import Type, ClassVar
-from enum import Enum
+from typing import ClassVar, cast
 from struct import pack as struct_pack, unpack as struct_unpack
 
 from msdsalgs.win32_error import Win32ErrorCode
@@ -48,12 +46,17 @@ async def base_reg_close_key(
     raise_exception: bool = True
 ) -> BaseRegCloseKeyResponse:
     """
-    Perform the BaseRegCloseKey operation.
+    Perform the `BaseRegCloseKey` operation.
 
-    :param rpc_connection:
-    :param request:
-    :param raise_exception:
-    :return:
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-rrp/bc7545ff-0a54-4465-a95a-396b5c2995df
+
+    :param rpc_connection: An RPC connection with which to perform the operation.
+    :param request: The `BaseRegCloseKey` request.
+    :param raise_exception: Whether to raise an exception in case the response indicates an error occurred.
+    :return: The `BaseRegCloseKey` response.
     """
 
-    return await obtain_response(rpc_connection=rpc_connection, request=request, raise_exception=raise_exception)
+    return cast(
+        BaseRegCloseKeyResponse,
+        await obtain_response(rpc_connection=rpc_connection, request=request, raise_exception=raise_exception)
+    )

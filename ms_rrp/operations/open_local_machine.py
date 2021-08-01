@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, AsyncIterator, cast
 from struct import pack as struct_pack, unpack as struct_unpack
 from contextlib import asynccontextmanager
 
@@ -19,7 +19,10 @@ class OpenLocalMachineResponse(ClientProtocolResponseBase):
 
     @classmethod
     def from_bytes(cls, data: bytes) -> OpenLocalMachineResponse:
-        return cls(key_handle=data[:20], return_code=Win32ErrorCode(struct_unpack('<I', data[20:24])[0]))
+        return cls(
+            key_handle=data[:20],
+            return_code=Win32ErrorCode(struct_unpack('<I', data[20:24])[0])
+        )
 
     def __bytes__(self) -> bytes:
         return self.key_handle + struct_pack('<I', self.return_code)
@@ -50,23 +53,28 @@ async def open_local_machine(
     rpc_connection: RPCConnection,
     request: OpenLocalMachineRequest,
     raise_exception: bool = True
-) -> OpenLocalMachineResponse:
+) -> AsyncIterator[OpenLocalMachineResponse]:
     """
-    Perform the OpenLocalMachine operation.
+    Perform the `OpenLocalMachine` operation.
 
-    :param rpc_connection:
-    :param request:
-    :param raise_exception:
-    :return:
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-rrp/6cef29ae-21ba-423f-9158-05145ac80a5b
+
+    :param rpc_connection: An RPC connection with which to perform the operation.
+    :param request: The `OpenLocalMachine` request.
+    :param raise_exception: Whether to raise an exception in case the response indicates an error occurred.
+    :return: The `OpenLocalMachine` response.
     """
 
-    open_local_machine_response: OpenLocalMachineResponse = await obtain_response(
-        rpc_connection=rpc_connection,
-        request=request,
-        raise_exception=raise_exception
+    open_local_machine_response = cast(
+        OpenLocalMachineResponse,
+        await obtain_response(
+            rpc_connection=rpc_connection,
+            request=request,
+            raise_exception=raise_exception
+        )
     )
 
-    yield open_local_machine_response.key_handle
+    yield open_local_machine_response
 
     await base_reg_close_key(
         rpc_connection=rpc_connection,
