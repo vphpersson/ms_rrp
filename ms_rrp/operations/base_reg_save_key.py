@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import ClassVar, Union, Optional
+from typing import ClassVar, Union, Optional, cast
 from struct import pack as struct_pack, unpack as struct_unpack
 from pathlib import PureWindowsPath
 
@@ -50,6 +50,7 @@ class BaseRegSaveKeyRequest(ClientProtocolRequestBase):
             )
         )
 
+    # TODO: Does this really work? Don't I need a `Pointer`?
     def __bytes__(self) -> bytes:
         return b''.join([
             self.key_handle,
@@ -68,12 +69,17 @@ async def base_reg_save_key(
     raise_exception: bool = True
 ) -> BaseRegSaveKeyResponse:
     """
-    Perform the BaseRegSaveKey operation.
+    Perform the `BaseRegSaveKey` operation.
 
-    :param rpc_connection:
-    :param request:
-    :param raise_exception:
-    :return:
+    https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-rrp/f022247d-6ef1-4f46-b195-7f60654f4a0d
+
+    :param rpc_connection: An RPC connection with which to perform the operation.
+    :param request: The `BaseRegSaveKey` request.
+    :param raise_exception: Whether to raise an exception in case the the response indicates an error occurred.
+    :return: The `BaseRegSaveKey` response.
     """
 
-    return await obtain_response(rpc_connection=rpc_connection, request=request, raise_exception=raise_exception)
+    return cast(
+        BaseRegSaveKeyResponse,
+        await obtain_response(rpc_connection=rpc_connection, request=request, raise_exception=raise_exception)
+    )

@@ -46,10 +46,10 @@ async def dump_reg(
         rpc_connection=rpc_connection,
         request=BaseRegOpenKeyRequest(key_handle=root_key_handle, sub_key_name=sub_key_name, sam_desired=sam_desired)
     )
-    async with base_reg_open_key(**base_reg_open_key_options) as key_handle:
+    async with base_reg_open_key(**base_reg_open_key_options) as base_reg_open_key_response:
         await base_reg_save_key(
             rpc_connection=rpc_connection,
-            request=BaseRegSaveKeyRequest(key_handle=key_handle, save_path=save_path)
+            request=BaseRegSaveKeyRequest(key_handle=base_reg_open_key_response.key_handle, save_path=save_path)
         )
 
     create_kwargs = dict(
