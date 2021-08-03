@@ -14,3 +14,9 @@ class RegValueType(IntEnum):
     REG_FULL_RESOURCE_DESCRIPTOR = 9
     REG_RESOURCE_REQUIREMENTS_LIST = 10
     REG_QWORD = 11
+
+
+# TODO: Complement.
+REG_VALUE_TYPE_TO_STRUCT_FORMAT: dict[RegValueType, str] = {
+    RegValueType.REG_DWORD: '<I'
+}

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import ClassVar, AsyncIterator, cast
-from struct import pack as struct_pack, unpack as struct_unpack
+from typing import ClassVar, AsyncIterator, cast, ByteString
+from struct import Struct
 from contextlib import asynccontextmanager
 
 from msdsalgs.win32_error import Win32ErrorCode
@@ -18,19 +18,36 @@ from ms_rrp.operations.base_reg_close_key import base_reg_close_key, BaseRegClos
 
 @dataclass
 class BaseRegOpenKeyResponse(ClientProtocolResponseBase):
+    _KEY_HANDLE_STRUCT: ClassVar[Struct] = Struct('20s')
+
     key_handle: bytes
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> BaseRegOpenKeyResponse:
-        return cls(key_handle=data[:20], return_code=Win32ErrorCode(struct_unpack('<I', data[20:24])[0]))
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegOpenKeyResponse:
+        data = memoryview(data)[base_offset:]
+        offset = 0
+
+        key_handle: bytes = cls._KEY_HANDLE_STRUCT.unpack_from(buffer=data, offset=offset)[0]
+        offset += cls._KEY_HANDLE_STRUCT.size
+
+        return_code = Win32ErrorCode(cls._RETURN_CODE_STRUCT.unpack_from(buffer=data, offset=offset)[0])
+
+        return cls(key_handle=key_handle, return_code=return_code)
 
     def __bytes__(self) -> bytes:
-        return self.key_handle + struct_pack('<I', self.return_code)
+        return self.key_handle + self._RETURN_CODE_STRUCT.pack(self.return_code)
+
+    def __len__(self) -> int:
+        return self._KEY_HANDLE_STRUCT.size + self._RETURN_CODE_STRUCT.size
 
 
 @dataclass
 class BaseRegOpenKeyRequest(ClientProtocolRequestBase):
     OPERATION: ClassVar[Operation] = Operation.BASE_REG_OPEN_KEY
+
+    _KEY_HANDLE_STRUCT: ClassVar[Struct] = Struct('20s')
+    _OPTIONS_STRUCT: ClassVar[Struct] = Struct('<I')
+    _SAM_DESIRED_STRUCT: ClassVar[Struct] = Struct('<I')
 
     key_handle: bytes
     sub_key_name: str
@@ -38,25 +55,34 @@ class BaseRegOpenKeyRequest(ClientProtocolRequestBase):
     sam_desired: Regsam = Regsam()
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> BaseRegOpenKeyRequest:
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegOpenKeyRequest:
+        data = memoryview(data)[base_offset:]
+        offset = 0
 
-        offset = 20
-        ndr_sub_key_name = RRPUnicodeString.from_bytes(data=data[offset:])
+        key_handle: bytes = cls._KEY_HANDLE_STRUCT.unpack_from(buffer=data, offset=offset)[0]
+        offset += cls._KEY_HANDLE_STRUCT.size
+
+        ndr_sub_key_name = RRPUnicodeString.from_bytes(data=data, base_offset=offset)
         offset += calculate_pad_length(len(ndr_sub_key_name))
 
+        options = RegOptions.from_int(value=cls._OPTIONS_STRUCT.unpack_from(buffer=data, offset=offset)[0])
+        offset += cls._OPTIONS_STRUCT.size
+
+        sam_desired = Regsam.from_int(value=cls._SAM_DESIRED_STRUCT.unpack_from(buffer=data, offset=offset)[0])
+
         return cls(
-            key_handle=data[:20],
+            key_handle=key_handle,
             sub_key_name=ndr_sub_key_name.representation,
-            options=RegOptions.from_int(struct_unpack('<I', data[offset:offset+4])[0]),
-            sam_desired=Regsam.from_int(struct_unpack('<I', data[offset+4:offset+4+4])[0])
+            options=options,
+            sam_desired=sam_desired
         )
 
     def __bytes__(self) -> bytes:
         return b''.join([
             self.key_handle,
             ndr_pad(bytes(RRPUnicodeString(representation=self.sub_key_name))),
-            struct_pack('<I', int(self.options)),
-            struct_pack('<I', int(self.sam_desired))
+            self._OPTIONS_STRUCT.pack(int(self.options)),
+            self._SAM_DESIRED_STRUCT.pack(int(self.sam_desired))
         ])
 
 

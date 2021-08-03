@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar, ByteString, cast
-from struct import pack, unpack_from
+from struct import Struct, calcsize
 
 from msdsalgs.win32_error import Win32ErrorCode
 from rpc.utils.client_protocol_message import ClientProtocolRequestBase, ClientProtocolResponseBase, obtain_response
@@ -11,7 +11,7 @@ from rpc.connection import Connection as RPCConnection
 
 from ms_rrp.operations import Operation
 from ms_rrp.structures.rrp_unicode_string import RRPUnicodeString
-from ms_rrp.structures.reg_value_type import RegValueType
+from ms_rrp.structures.reg_value_type import RegValueType, REG_VALUE_TYPE_TO_STRUCT_FORMAT
 
 
 @dataclass
@@ -19,15 +19,22 @@ class BaseRegSetValueResponse(ClientProtocolResponseBase):
 
     @classmethod
     def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegSetValueResponse:
-        return cls(return_code=Win32ErrorCode(unpack_from('<I', buffer=data, offset=base_offset)[0]))
+        return cls(return_code=Win32ErrorCode(cls._RETURN_CODE_STRUCT.unpack_from(buffer=data, offset=base_offset)[0]))
 
     def __bytes__(self) -> bytes:
-        return pack('<I', self.return_code)
+        return self._RETURN_CODE_STRUCT.pack(self.return_code)
+
+    def __len__(self) -> int:
+        return self._RETURN_CODE_STRUCT.size
 
 
 @dataclass
 class BaseRegSetValueRequest(ClientProtocolRequestBase):
     OPERATION: ClassVar[Operation] = Operation.BASE_REG_SET_VALUE
+
+    _KEY_HANDLE_STRUCT: ClassVar[Struct] = Struct('20s')
+    _VALUE_TYPE_STRUCT: ClassVar[Struct] = Struct('<I')
+    _VALUE_LEN_STRUCT: ClassVar[Struct] = Struct('<I')
 
     key_handle: bytes
     sub_key_name: str
@@ -35,41 +42,49 @@ class BaseRegSetValueRequest(ClientProtocolRequestBase):
     value: bytes
 
     # TODO: Consider default value for `strict` parameter.
-    # TODO: Test
     @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0, strict: bool = False):
+    def from_bytes(cls, data: ByteString, base_offset: int = 0, strict: bool = False) -> BaseRegSetValueRequest:
 
-        offset: int = base_offset
-        data = memoryview(data)[offset:]
+        data = memoryview(data)[base_offset:]
+        offset = 0
 
-        key_handle = bytes(data[:20])
-        offset += 20
+        key_handle: bytes = cls._KEY_HANDLE_STRUCT.unpack_from(buffer=data, offset=offset)[0]
+        offset += cls._KEY_HANDLE_STRUCT.size
 
         ndr_sub_key_name = RRPUnicodeString.from_bytes(data[offset:])
-        offset += calculate_pad_length(len(ndr_sub_key_name))
+        offset += calculate_pad_length(length_unpadded=len(ndr_sub_key_name))
 
-        value_type = RegValueType(unpack_from('<I', buffer=data, offset=offset)[0])
-        offset += 4
+        value_type = RegValueType(cls._VALUE_TYPE_STRUCT.unpack_from(buffer=data, offset=offset)[0])
+        offset += cls._VALUE_TYPE_STRUCT.size
 
-        ndr_array = UnidimensionalConformantArray.from_bytes(data=bytes(data[offset:len(data)-4]))
+        ndr_value = UnidimensionalConformantArray.from_bytes(
+            data=bytes(
+                data[
+                    offset
+                    :
+                    offset+UnidimensionalConformantArray.STRUCTURE_SIZE+calcsize(REG_VALUE_TYPE_TO_STRUCT_FORMAT[value_type])
+                ]
+            )
+        )
+        offset += len(ndr_value)
 
-        value_len: int = unpack_from('<I', buffer=data, offset=len(data)-4)[0]
+        value_len: int = cls._VALUE_LEN_STRUCT.unpack_from(buffer=data, offset=offset)[0]
         # TODO: Check if correct?
 
         return cls(
             key_handle=key_handle,
             sub_key_name=ndr_sub_key_name.representation,
             value_type=value_type,
-            value=b''.join(ndr_array.representation)
+            value=b''.join(ndr_value.representation)
         )
 
     def __bytes__(self) -> bytes:
         return b''.join([
             self.key_handle,
             ndr_pad(bytes(RRPUnicodeString(representation=self.sub_key_name))),
-            pack('<I', self.value_type.value),
+            self._VALUE_TYPE_STRUCT.pack(self.value_type.value),
             bytes(UnidimensionalConformantArray(tuple(self.value))),
-            pack('<I', len(self.value))
+            self._VALUE_LEN_STRUCT.pack(len(self.value))
         ])
 
 

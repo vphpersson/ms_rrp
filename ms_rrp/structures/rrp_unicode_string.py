@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from struct import unpack as struct_unpack, pack as struct_pack
+from typing import ByteString
+from struct import unpack_from, pack
 
 from ndr.structures.conformant_varying_string import ConformantVaryingString
 from ndr.structures.pointer import Pointer, NullPointer
@@ -15,12 +16,22 @@ class RRPUnicodeString:
         return (self.representation + '\x00').encode(encoding='utf-16-le')
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> RRPUnicodeString:
-        length: int = struct_unpack('<H', data[:2])[0]
-        maximum_length: int = struct_unpack('<H', data[2:4])[0]
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> RRPUnicodeString:
+        data = memoryview(data)[base_offset:]
+        offset = 0
+
+        length: int = unpack_from('<H', buffer=data, offset=offset)[0]
+        offset += 2
+
+        maximum_length: int = unpack_from('<H', buffer=data, offset=offset)[0]
+        offset += 2
 
         ndr_string = ConformantVaryingString.from_bytes(
-            data=data[4+Pointer.structure_size:4+Pointer.structure_size+ConformantVaryingString.STRUCTURE_SIZE+length]
+            data=data[
+                 offset+Pointer.structure_size
+                 :
+                 offset+Pointer.structure_size+ConformantVaryingString.STRUCTURE_SIZE+length
+             ]
         )
 
         return cls(representation=ndr_string.representation)
@@ -36,8 +47,8 @@ class RRPUnicodeString:
             string_len = len(self.representation_bytes)
 
         return b''.join([
-            struct_pack('<H', string_len),
-            struct_pack('<H', string_len),
+            pack('<H', string_len),
+            pack('<H', string_len),
             bytes(pointer)
         ])
 
