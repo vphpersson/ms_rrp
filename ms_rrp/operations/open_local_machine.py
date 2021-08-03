@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import ClassVar, AsyncIterator, cast
-from struct import pack as struct_pack, unpack as struct_unpack
+from typing import ClassVar, AsyncIterator, cast, ByteString
+from struct import Struct
 from contextlib import asynccontextmanager
 
 from msdsalgs.win32_error import Win32ErrorCode
@@ -15,17 +15,27 @@ from ms_rrp.operations.base_reg_close_key import base_reg_close_key, BaseRegClos
 
 @dataclass
 class OpenLocalMachineResponse(ClientProtocolResponseBase):
+    _KEY_HANDLE_STRUCT: ClassVar[Struct] = Struct('20s')
+
     key_handle: bytes
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> OpenLocalMachineResponse:
-        return cls(
-            key_handle=data[:20],
-            return_code=Win32ErrorCode(struct_unpack('<I', data[20:24])[0])
-        )
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenLocalMachineResponse:
+        data = memoryview(data)[base_offset:]
+        offset = 0
+
+        key_handle: bytes = cls._KEY_HANDLE_STRUCT.unpack_from(buffer=data, offset=offset)[0]
+        offset += cls._KEY_HANDLE_STRUCT.size
+
+        return_code = Win32ErrorCode(cls._RETURN_CODE_STRUCT.unpack_from(buffer=data, offset=offset)[0])
+
+        return cls(key_handle=key_handle, return_code=return_code)
 
     def __bytes__(self) -> bytes:
-        return self.key_handle + struct_pack('<I', self.return_code)
+        return self.key_handle + self._RETURN_CODE_STRUCT.pack(self.return_code)
+
+    def __len__(self) -> int:
+        return self._KEY_HANDLE_STRUCT.size + self._RETURN_CODE_STRUCT.size
 
 
 @dataclass
@@ -33,15 +43,25 @@ class OpenLocalMachineRequest(ClientProtocolRequestBase):
     OPERATION: ClassVar[Operation] = Operation.OPEN_LOCAL_MACHINE
     _RESERVED_SERVER_NAME: ClassVar[bytes] = bytes(4)
 
+    _SAM_DESIRED_STRUCT: ClassVar[Struct] = Struct('<I')
+
     sam_desired: Regsam
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> OpenLocalMachineRequest:
-        # TODO: Check reserved `ServerName` if `strict_check` is set.
-        return cls(sam_desired=Regsam.from_int(struct_unpack('<I', data[4:8])[0]))
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenLocalMachineRequest:
+        data = memoryview(data)[base_offset:]
+        offset = 0
+
+        # TODO: Check reserved `ServerName` if `strict` is set?
+        offset += 4
+
+        return cls(sam_desired=Regsam.from_int(cls._SAM_DESIRED_STRUCT.unpack_from(buffer=data, offset=offset)[0]))
 
     def __bytes__(self) -> bytes:
-        return self._RESERVED_SERVER_NAME + struct_pack('<I', int(self.sam_desired))
+        return self._RESERVED_SERVER_NAME + self._SAM_DESIRED_STRUCT.pack(int(self.sam_desired))
+
+    def __len__(self) -> int:
+        return len(self._RESERVED_SERVER_NAME) + self._SAM_DESIRED_STRUCT.size
 
 
 OpenLocalMachineResponse.REQUEST_CLASS = OpenLocalMachineRequest

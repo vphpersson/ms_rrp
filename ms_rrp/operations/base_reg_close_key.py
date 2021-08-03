@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import ClassVar, cast
-from struct import pack as struct_pack, unpack as struct_unpack
+from typing import ClassVar, cast, ByteString
+from struct import Struct
 
 from msdsalgs.win32_error import Win32ErrorCode
 from rpc.connection import Connection as RPCConnection
@@ -12,28 +12,46 @@ from ms_rrp.operations import Operation
 
 @dataclass
 class BaseRegCloseKeyResponse(ClientProtocolResponseBase):
+    _KEY_HANDLE_STRUCT: ClassVar[Struct] = Struct('20s')
+
     key_handle: bytes
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> BaseRegCloseKeyResponse:
-        return cls(key_handle=data[:20], return_code=Win32ErrorCode(struct_unpack('<I', data[20:24])[0]))
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegCloseKeyResponse:
+        data = memoryview(data)[base_offset:]
+        offset = 0
+
+        key_handle: bytes = cls._KEY_HANDLE_STRUCT.unpack_from(buffer=data, offset=offset)[0]
+        offset += cls._KEY_HANDLE_STRUCT.size
+
+        return_code = Win32ErrorCode(cls._RETURN_CODE_STRUCT.unpack_from(buffer=data, offset=offset)[0])
+        offset += cls._RETURN_CODE_STRUCT.size
+
+        return cls(key_handle=key_handle, return_code=return_code)
 
     def __bytes__(self) -> bytes:
-        return self.key_handle + struct_pack('<I', self.return_code)
+        return self.key_handle + self._RETURN_CODE_STRUCT.pack(self.return_code)
+
+    def __len__(self) -> int:
+        return self._KEY_HANDLE_STRUCT.size + self._RETURN_CODE_STRUCT.size
 
 
 @dataclass
 class BaseRegCloseKeyRequest(ClientProtocolRequestBase):
     OPERATION: ClassVar[Operation] = Operation.BASE_REG_CLOSE_KEY
+    _KEY_HANDLE_STRUCT: ClassVar[Struct] = Struct('20s')
 
     key_handle: bytes
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> BaseRegCloseKeyRequest:
-        return cls(key_handle=data[:20])
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegCloseKeyRequest:
+        return cls(key_handle=cls._KEY_HANDLE_STRUCT.unpack_from(buffer=data, offset=base_offset)[0])
 
     def __bytes__(self) -> bytes:
         return self.key_handle
+
+    def __len__(self) -> int:
+        return self._KEY_HANDLE_STRUCT.size
 
 
 BaseRegCloseKeyResponse.REQUEST_CLASS = BaseRegCloseKeyRequest
