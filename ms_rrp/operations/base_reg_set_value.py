@@ -66,7 +66,7 @@ class BaseRegSetValueRequest(ClientProtocolRequestBase):
                 ]
             )
         )
-        offset += len(ndr_value)
+        offset += calculate_pad_length(len(ndr_value))
 
         value_len: int = cls._VALUE_LEN_STRUCT.unpack_from(buffer=data, offset=offset)[0]
         # TODO: Check if correct?
@@ -83,7 +83,7 @@ class BaseRegSetValueRequest(ClientProtocolRequestBase):
             self.key_handle,
             ndr_pad(bytes(RRPUnicodeString(representation=self.sub_key_name))),
             self._VALUE_TYPE_STRUCT.pack(self.value_type.value),
-            bytes(UnidimensionalConformantArray(tuple(self.value))),
+            ndr_pad(bytes(UnidimensionalConformantArray(tuple(self.value)))),
             self._VALUE_LEN_STRUCT.pack(len(self.value))
         ])
 

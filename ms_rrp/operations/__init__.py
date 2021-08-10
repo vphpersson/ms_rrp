@@ -1,4 +1,64 @@
+from __future__ import annotations
+from abc import ABC
+from dataclasses import dataclass
+from typing import ClassVar, ByteString
 from enum import IntEnum
+from struct import Struct
+
+from rpc.utils.client_protocol_message import ClientProtocolRequestBase, ClientProtocolResponseBase
+from msdsalgs.win32_error import Win32ErrorCode
+
+from ms_rrp.structures.regsam import Regsam
+
+
+@dataclass
+class OpenRootKeyResponse(ClientProtocolResponseBase, ABC):
+    _KEY_HANDLE_STRUCT: ClassVar[Struct] = Struct('20s')
+
+    key_handle: bytes
+
+    @classmethod
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenRootKeyResponse:
+        data = memoryview(data)[base_offset:]
+        offset = 0
+
+        key_handle: bytes = cls._KEY_HANDLE_STRUCT.unpack_from(buffer=data, offset=offset)[0]
+        offset += cls._KEY_HANDLE_STRUCT.size
+
+        return_code = Win32ErrorCode(cls._RETURN_CODE_STRUCT.unpack_from(buffer=data, offset=offset)[0])
+
+        return cls(key_handle=key_handle, return_code=return_code)
+
+    def __bytes__(self) -> bytes:
+        return self.key_handle + self._RETURN_CODE_STRUCT.pack(self.return_code)
+
+    def __len__(self) -> int:
+        return self._KEY_HANDLE_STRUCT.size + self._RETURN_CODE_STRUCT.size
+
+
+@dataclass
+class OpenRootKeyRequest(ClientProtocolRequestBase, ABC):
+    _RESERVED_SERVER_NAME: ClassVar[bytes] = bytes(4)
+
+    _SAM_DESIRED_STRUCT: ClassVar[Struct] = Struct('<I')
+
+    sam_desired: Regsam
+
+    @classmethod
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenRootKeyRequest:
+        data = memoryview(data)[base_offset:]
+        offset = 0
+
+        # TODO: Check reserved `ServerName` if `strict` is set?
+        offset += 4
+
+        return cls(sam_desired=Regsam.from_int(cls._SAM_DESIRED_STRUCT.unpack_from(buffer=data, offset=offset)[0]))
+
+    def __bytes__(self) -> bytes:
+        return self._RESERVED_SERVER_NAME + self._SAM_DESIRED_STRUCT.pack(int(self.sam_desired))
+
+    def __len__(self) -> int:
+        return len(self._RESERVED_SERVER_NAME) + self._SAM_DESIRED_STRUCT.size
 
 
 class Operation(IntEnum):
@@ -38,3 +98,4 @@ class Operation(IntEnum):
     OPEN_PERFORMANCE_NLS_TEXT = 33
     BASE_REG_QUERY_MULTIPLE_VALUES2 = 34
     BASE_REG_DELETE_KEY_EX = 35
+

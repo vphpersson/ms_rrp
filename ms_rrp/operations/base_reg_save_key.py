@@ -37,7 +37,7 @@ class BaseRegSaveKeyRequest(ClientProtocolRequestBase):
 
     key_handle: bytes
     save_path: Union[str, PureWindowsPath]
-    security_attributes: RPCSecurityAttributes
+    security_attributes: RPCSecurityAttributes = RPCSecurityAttributes()
 
     @classmethod
     def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegSaveKeyRequest:
