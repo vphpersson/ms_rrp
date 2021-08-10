@@ -52,7 +52,7 @@ class BaseRegOpenKeyRequest(ClientProtocolRequestBase):
     key_handle: bytes
     sub_key_name: str
     options: RegOptions = RegOptions()
-    sam_desired: Regsam = Regsam()
+    sam_desired: Regsam = Regsam(maximum_allowed=True)
 
     @classmethod
     def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegOpenKeyRequest:

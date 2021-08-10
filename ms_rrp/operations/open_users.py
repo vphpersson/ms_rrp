@@ -11,51 +11,51 @@ from ms_rrp.operations.base_reg_close_key import base_reg_close_key, BaseRegClos
 
 
 @dataclass
-class OpenLocalMachineResponse(OpenRootKeyResponse):
+class OpenUsersResponse(OpenRootKeyResponse):
     @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenLocalMachineResponse:
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenUsersResponse:
         return cast(
-            OpenLocalMachineResponse,
+            OpenUsersResponse,
             super().from_bytes(data=data, base_offset=base_offset)
         )
 
 
 @dataclass
-class OpenLocalMachineRequest(OpenRootKeyRequest):
-    OPERATION: ClassVar[Operation] = Operation.OPEN_LOCAL_MACHINE
+class OpenUsersRequest(OpenRootKeyRequest):
+    OPERATION: ClassVar[Operation] = Operation.OPEN_USERS
 
     @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenLocalMachineRequest:
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenUsersRequest:
         return cast(
-            OpenLocalMachineRequest,
+            OpenUsersRequest,
             super().from_bytes(data=data, base_offset=base_offset)
         )
 
 
 
-OpenLocalMachineResponse.REQUEST_CLASS = OpenLocalMachineRequest
-OpenLocalMachineRequest.RESPONSE_CLASS = OpenLocalMachineResponse
+OpenUsersResponse.REQUEST_CLASS = OpenUsersRequest
+OpenUsersRequest.RESPONSE_CLASS = OpenUsersResponse
 
 
 @asynccontextmanager
-async def open_local_machine(
+async def open_users(
     rpc_connection: RPCConnection,
-    request: OpenLocalMachineRequest,
+    request: OpenUsersRequest,
     raise_exception: bool = True
-) -> AsyncIterator[OpenLocalMachineResponse]:
+) -> AsyncIterator[OpenUsersResponse]:
     """
-    Perform the `OpenLocalMachine` operation.
+    Perform the `OpenUsers` operation.
 
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-rrp/6cef29ae-21ba-423f-9158-05145ac80a5b
 
     :param rpc_connection: An RPC connection with which to perform the operation.
-    :param request: The `OpenLocalMachine` request.
+    :param request: The `OpenUsers` request.
     :param raise_exception: Whether to raise an exception in case the response indicates an error occurred.
-    :return: The `OpenLocalMachine` response.
+    :return: The `OpenUsers` response.
     """
 
-    open_local_machine_response = cast(
-        OpenLocalMachineResponse,
+    open_users_response = cast(
+        OpenUsersResponse,
         await obtain_response(
             rpc_connection=rpc_connection,
             request=request,
@@ -63,11 +63,11 @@ async def open_local_machine(
         )
     )
 
-    yield open_local_machine_response
+    yield open_users_response
 
     await base_reg_close_key(
         rpc_connection=rpc_connection,
         request=BaseRegCloseKeyRequest(
-            key_handle=open_local_machine_response.key_handle
+            key_handle=open_users_response.key_handle
         )
     )

@@ -1,67 +1,36 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar, ByteString, AsyncIterator, cast
-from struct import Struct
 from contextlib import asynccontextmanager
 
-from msdsalgs.win32_error import Win32ErrorCode
 from rpc.connection import Connection as RPCConnection
-from rpc.utils.client_protocol_message import ClientProtocolRequestBase, ClientProtocolResponseBase, obtain_response
+from rpc.utils.client_protocol_message import obtain_response
 
-from ms_rrp.operations import Operation
-from ms_rrp.structures.regsam import Regsam
+from ms_rrp.operations import Operation, OpenRootKeyRequest, OpenRootKeyResponse
 from ms_rrp.operations.base_reg_close_key import base_reg_close_key, BaseRegCloseKeyRequest
 
 
 @dataclass
-class OpenClassesRootResponse(ClientProtocolResponseBase):
-    _KEY_HANDLE_STRUCT: ClassVar[Struct] = Struct('20s')
-
-    key_handle: bytes
-
+class OpenClassesRootResponse(OpenRootKeyResponse):
     @classmethod
     def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenClassesRootResponse:
-        data = memoryview(data)[base_offset:]
-        offset = 0
-
-        key_handle: bytes = cls._KEY_HANDLE_STRUCT.unpack_from(buffer=data, offset=offset)[0]
-        offset += cls._KEY_HANDLE_STRUCT.size
-
-        return_code = Win32ErrorCode(cls._RETURN_CODE_STRUCT.unpack_from(buffer=data, offset=offset)[0])
-
-        return cls(key_handle=key_handle, return_code=return_code)
-
-    def __bytes__(self) -> bytes:
-        return self.key_handle + self._RETURN_CODE_STRUCT.pack(self.return_code)
-
-    def __len__(self) -> int:
-        return self._KEY_HANDLE_STRUCT.size + self._RETURN_CODE_STRUCT.size
+        return cast(
+            OpenClassesRootResponse,
+            super().from_bytes(data=data, base_offset=base_offset)
+        )
 
 
 @dataclass
-class OpenClassesRootRequest(ClientProtocolRequestBase):
+class OpenClassesRootRequest(OpenRootKeyRequest):
     OPERATION: ClassVar[Operation] = Operation.OPEN_CLASSES_ROOT
-    _RESERVED_SERVER_NAME: ClassVar[bytes] = bytes(4)
-
-    _SAM_DESIRED_STRUCT: ClassVar[Struct] = Struct('<I')
-
-    sam_desired: Regsam
 
     @classmethod
     def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenClassesRootRequest:
-        data = memoryview(data)[base_offset:]
-        offset = 0
+        return cast(
+            OpenClassesRootRequest,
+            super().from_bytes(data=data, base_offset=base_offset)
+        )
 
-        # TODO: Check reserved `ServerName` if `strict` is set?
-        offset += 4
-
-        return cls(sam_desired=Regsam.from_int(cls._SAM_DESIRED_STRUCT.unpack_from(buffer=data, offset=offset)[0]))
-
-    def __bytes__(self) -> bytes:
-        return self._RESERVED_SERVER_NAME + self._SAM_DESIRED_STRUCT.pack(int(self.sam_desired))
-
-    def __len__(self) -> int:
-        return len(self._RESERVED_SERVER_NAME) + self._SAM_DESIRED_STRUCT.size
 
 
 OpenClassesRootResponse.REQUEST_CLASS = OpenClassesRootRequest

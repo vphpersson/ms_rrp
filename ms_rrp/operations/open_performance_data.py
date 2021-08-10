@@ -11,51 +11,51 @@ from ms_rrp.operations.base_reg_close_key import base_reg_close_key, BaseRegClos
 
 
 @dataclass
-class OpenLocalMachineResponse(OpenRootKeyResponse):
+class OpenPerformanceDataResponse(OpenRootKeyResponse):
     @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenLocalMachineResponse:
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenPerformanceDataResponse:
         return cast(
-            OpenLocalMachineResponse,
+            OpenPerformanceDataResponse,
             super().from_bytes(data=data, base_offset=base_offset)
         )
 
 
 @dataclass
-class OpenLocalMachineRequest(OpenRootKeyRequest):
-    OPERATION: ClassVar[Operation] = Operation.OPEN_LOCAL_MACHINE
+class OpenPerformanceDataRequest(OpenRootKeyRequest):
+    OPERATION: ClassVar[Operation] = Operation.OPEN_PERFORMANCE_DATA
 
     @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenLocalMachineRequest:
+    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenPerformanceDataRequest:
         return cast(
-            OpenLocalMachineRequest,
+            OpenPerformanceDataRequest,
             super().from_bytes(data=data, base_offset=base_offset)
         )
 
 
 
-OpenLocalMachineResponse.REQUEST_CLASS = OpenLocalMachineRequest
-OpenLocalMachineRequest.RESPONSE_CLASS = OpenLocalMachineResponse
+OpenPerformanceDataResponse.REQUEST_CLASS = OpenPerformanceDataRequest
+OpenPerformanceDataRequest.RESPONSE_CLASS = OpenPerformanceDataResponse
 
 
 @asynccontextmanager
-async def open_local_machine(
-    rpc_connection: RPCConnection,
-    request: OpenLocalMachineRequest,
-    raise_exception: bool = True
-) -> AsyncIterator[OpenLocalMachineResponse]:
+async def open_performance_data(
+        rpc_connection: RPCConnection,
+        request: OpenPerformanceDataRequest,
+        raise_exception: bool = True
+) -> AsyncIterator[OpenPerformanceDataResponse]:
     """
-    Perform the `OpenLocalMachine` operation.
+    Perform the `OpenPerformanceData` operation.
 
     https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-rrp/6cef29ae-21ba-423f-9158-05145ac80a5b
 
     :param rpc_connection: An RPC connection with which to perform the operation.
-    :param request: The `OpenLocalMachine` request.
+    :param request: The `OpenPerformanceData` request.
     :param raise_exception: Whether to raise an exception in case the response indicates an error occurred.
-    :return: The `OpenLocalMachine` response.
+    :return: The `OpenPerformanceData` response.
     """
 
-    open_local_machine_response = cast(
-        OpenLocalMachineResponse,
+    open_performance_data_response = cast(
+        OpenPerformanceDataResponse,
         await obtain_response(
             rpc_connection=rpc_connection,
             request=request,
@@ -63,11 +63,11 @@ async def open_local_machine(
         )
     )
 
-    yield open_local_machine_response
+    yield open_performance_data_response
 
     await base_reg_close_key(
         rpc_connection=rpc_connection,
         request=BaseRegCloseKeyRequest(
-            key_handle=open_local_machine_response.key_handle
+            key_handle=open_performance_data_response.key_handle
         )
     )
