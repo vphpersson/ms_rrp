@@ -1,8 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import ClassVar, Union, cast, ByteString, Optional
+from typing import ClassVar, cast, ByteString
 from struct import Struct
-from pathlib import PureWindowsPath
 
 from msdsalgs.win32_error import Win32ErrorCode
 from rpc.connection import Connection as RPCConnection
@@ -15,14 +14,6 @@ from ms_rrp.operations import Operation
 from ms_rrp.structures.reg_value_type import RegValueType
 from ms_rrp.structures.rrp_unicode_string import RRPUnicodeString
 
-from typing import Annotated
-from ctypes import c_ulong
-
-DWORD = Annotated[c_ulong, int]
-BYTE_ARRAY = UnidimensionalConformantVaryingArray
-LPBYTE = Annotated[Pointer, BYTE_ARRAY]
-LPDWORD = Annotated[Pointer, DWORD]
-
 
 @dataclass
 class BaseRegQueryValueResponse(ClientProtocolResponseBase):
@@ -30,14 +21,6 @@ class BaseRegQueryValueResponse(ClientProtocolResponseBase):
     _VALUE_TYPE_STRUCT = Struct('<I')
     _DATA_LEN_STRUCT = Struct('<I')
     _DATA_SIZE_STRUCT = Struct('<I')
-
-    _STRUCTURE = (
-        (Pointer, Struct('<I'), RegValueType),
-        (Pointer, UnidimensionalConformantVaryingArray),
-        (Pointer, Struct('<I')),
-        (Pointer, Struct('<I')),
-        (Struct('<I'), Win32ErrorCode)
-    )
 
     # TODO: Add `parsed_value` property.
 
