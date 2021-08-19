@@ -1,4 +1,5 @@
-from ms_rrp.operations.open_classes_root import OpenClassesRootRequest, OpenClassesRootResponse, Regsam
+from ms_rrp.operations.open_classes_root import OpenClassesRootRequest, OpenClassesRootResponse
+from ms_rrp.structures.regsam import Regsam
 
 from msdsalgs.win32_error import Win32ErrorCode
 

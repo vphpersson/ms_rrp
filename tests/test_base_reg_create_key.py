@@ -1,4 +1,7 @@
-from ms_rrp.operations.base_reg_create_key import BaseRegCreateKeyRequest, BaseRegCreateKeyResponse, RegOptions, Regsam, Disposition
+from ms_rrp.operations.base_reg_create_key import BaseRegCreateKeyRequest, BaseRegCreateKeyResponse
+from ms_rrp.structures.reg_options import RegOptions
+from ms_rrp.structures.regsam import Regsam
+from ms_rrp.structures.disposition import Disposition
 
 from msdsalgs.win32_error import Win32ErrorCode
 
