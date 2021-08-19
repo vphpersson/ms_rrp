@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from typing import ByteString
 from struct import unpack_from, pack
 
+from ndr.structures import NDRType
 from ndr.structures.conformant_varying_string import ConformantVaryingString
 from ndr.structures.pointer import Pointer, NullPointer
 
 
 @dataclass
-class RRPUnicodeString:
+class RRPUnicodeString(NDRType):
     representation: str
 
     @property

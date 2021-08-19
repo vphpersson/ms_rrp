@@ -1,107 +1,71 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import ClassVar, cast, ByteString
-from struct import Struct
+from typing import ClassVar, cast
 
 from msdsalgs.win32_error import Win32ErrorCode
 from rpc.connection import Connection as RPCConnection
 from rpc.utils.client_protocol_message import ClientProtocolRequestBase, ClientProtocolResponseBase, obtain_response
-from ndr.structures.pointer import Pointer
-from ndr.utils import calculate_pad_length, pad as ndr_pad
-from ndr.structures.unidimensional_conformant_varying_array import UnidimensionalConformantVaryingArray
+from rpc.utils.types import LPDWORD, DWORD, LPBYTE_VAR
 
 from ms_rrp.operations import Operation
 from ms_rrp.structures.reg_value_type import RegValueType
 from ms_rrp.structures.rrp_unicode_string import RRPUnicodeString
+from ms_rrp.structures.rpc_hkey import RpcHkey
 
 
 @dataclass
 class BaseRegQueryValueResponse(ClientProtocolResponseBase):
-
-    _VALUE_TYPE_STRUCT = Struct('<I')
-    _DATA_LEN_STRUCT = Struct('<I')
-    _DATA_SIZE_STRUCT = Struct('<I')
-
     # TODO: Add `parsed_value` property.
 
     value_type: RegValueType
     value: bytes
 
-    @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegQueryValueResponse:
-        data = memoryview(data)[base_offset:]
-        offset = 0
+    _STRUCTURE: ClassVar[dict[str, tuple[...]]] = {
+        'value_type': (LPDWORD, RegValueType),
+        'value': (LPBYTE_VAR,),
+        '__data_len': (LPDWORD,),
+        '__data_size': (LPDWORD,),
+        'return_code': (DWORD, Win32ErrorCode)
+    }
 
-        value_type_pointer = Pointer.from_bytes(data=data[offset:offset+Pointer.structure_size + cls._VALUE_TYPE_STRUCT.size])
-        offset += Pointer.structure_size
-        value_type = RegValueType(cls._VALUE_TYPE_STRUCT.unpack_from(buffer=value_type_pointer.representation)[0])
-        offset += cls._VALUE_TYPE_STRUCT.size
+    @property
+    def data_len(self) -> int:
+        return len(self.value)
 
-        value_pointer = Pointer.from_bytes(data=data, base_offset=offset)
-        offset += Pointer.structure_size
-        value_arr = UnidimensionalConformantVaryingArray.from_bytes(data=value_pointer.representation)
-        value = value_arr.representation
-        offset += calculate_pad_length(length_unpadded=len(value_arr))
-
-        data_len_pointer = Pointer.from_bytes(data=data, base_offset=offset)
-        offset += Pointer.structure_size
-        data_len = cls._DATA_LEN_STRUCT.unpack_from(buffer=data_len_pointer.representation)
-        offset += cls._DATA_LEN_STRUCT.size
-
-        data_size_pointer = Pointer.from_bytes(data=data, base_offset=offset)
-        offset += Pointer.structure_size
-        data_size = cls._DATA_SIZE_STRUCT.unpack_from(buffer=data_size_pointer.representation)
-        offset += cls._DATA_SIZE_STRUCT.size
-
-        return_code = Win32ErrorCode(cls._RETURN_CODE_STRUCT.unpack_from(buffer=data, offset=offset)[0])
-
-        return cls(value_type=value_type, value=value, return_code=return_code)
-
-    def __bytes__(self) -> bytes:
-        return b''.join([
-            ndr_pad(bytes(Pointer(representation=self._VALUE_TYPE_STRUCT.pack(self.value_type)))),
-            ndr_pad(bytes(Pointer(representation=UnidimensionalConformantVaryingArray(representation=self.value)))),
-            ndr_pad(bytes(Pointer(representation=self._DATA_LEN_STRUCT.pack(len(self.value))))),
-            ndr_pad(bytes(Pointer(representation=self._DATA_SIZE_STRUCT.pack(len(self.value))))),
-            self._RETURN_CODE_STRUCT.pack(self.return_code)
-        ])
+    @property
+    def data_size(self) -> int:
+        return len(self.value)
 
 
 @dataclass
 class BaseRegQueryValueRequest(ClientProtocolRequestBase):
     OPERATION: ClassVar[Operation] = Operation.BASE_REG_QUERY_VALUE
 
-    _KEY_HANDLE_STRUCT: ClassVar[Struct] = Struct('20s')
-    _VALUE_TYPE_STRUCT: ClassVar[Struct] = Struct('<I')
-    _DATA_SIZE_STRUCT: ClassVar[Struct] = Struct('<I')
-    _DATA_LEN_STRUCT: ClassVar[Struct] = Struct('<I')
-
     key_handle: bytes
     value_name: str
     value_buffer_size: int = 32
     value_type: RegValueType = RegValueType.REG_NONE
 
-    @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegQueryValueRequest:
-        ...
+    _STRUCTURE: ClassVar[dict[str, tuple[...]]] = {
+        'key_handle': (RpcHkey,),
+        'value_name': (RRPUnicodeString,),
+        'value_type': (LPDWORD, RegValueType),
+        '__data': (LPBYTE_VAR,),
+        '__data_len': (LPDWORD,),
+        '__data_size': (LPDWORD,)
+    }
 
-    def __bytes__(self) -> bytes:
-        return b''.join([
-            self.key_handle,
-            ndr_pad(data=bytes(RRPUnicodeString(representation=self.value_name))),
-            ndr_pad(bytes(Pointer(representation=self._VALUE_TYPE_STRUCT.pack(self.value_type)))),
-            ndr_pad(
-                bytes(
-                    Pointer(
-                        representation=UnidimensionalConformantVaryingArray(
-                            representation=bytes(self.value_buffer_size)
-                        )
-                    )
-                )
-            ),
-            ndr_pad(bytes(Pointer(representation=self._DATA_SIZE_STRUCT.pack(self.value_buffer_size)))),
-            ndr_pad(bytes(Pointer(representation=self._DATA_LEN_STRUCT.pack(self.value_buffer_size))))
-        ])
+    @property
+    def data(self) -> bytes:
+        return bytes(self.value_buffer_size)
+
+    @property
+    def data_len(self) -> int:
+        return self.value_buffer_size
+
+    @property
+    def data_size(self) -> int:
+        return self.value_buffer_size
 
 
 BaseRegQueryValueResponse.REQUEST_CLASS = BaseRegQueryValueRequest

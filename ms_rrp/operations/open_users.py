@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import ClassVar, AsyncIterator, cast, ByteString
+from typing import ClassVar, AsyncIterator, cast
 from contextlib import asynccontextmanager
 
 from rpc.connection import Connection as RPCConnection
@@ -12,25 +12,12 @@ from ms_rrp.operations.base_reg_close_key import base_reg_close_key, BaseRegClos
 
 @dataclass
 class OpenUsersResponse(OpenRootKeyResponse):
-    @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenUsersResponse:
-        return cast(
-            OpenUsersResponse,
-            super().from_bytes(data=data, base_offset=base_offset)
-        )
+    pass
 
 
 @dataclass
 class OpenUsersRequest(OpenRootKeyRequest):
     OPERATION: ClassVar[Operation] = Operation.OPEN_USERS
-
-    @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> OpenUsersRequest:
-        return cast(
-            OpenUsersRequest,
-            super().from_bytes(data=data, base_offset=base_offset)
-        )
-
 
 
 OpenUsersResponse.REQUEST_CLASS = OpenUsersRequest

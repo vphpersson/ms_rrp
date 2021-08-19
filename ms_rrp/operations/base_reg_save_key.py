@@ -1,72 +1,38 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import ClassVar, Union, cast, ByteString
-from struct import Struct
-from pathlib import PureWindowsPath
+from typing import ClassVar, cast
 
 from msdsalgs.win32_error import Win32ErrorCode
 from msdsalgs.rpc.rpc_security_attributes import RPCSecurityAttributes
 from rpc.connection import Connection as RPCConnection
 from rpc.utils.client_protocol_message import ClientProtocolRequestBase, ClientProtocolResponseBase, obtain_response
 from ndr.structures.pointer import Pointer
-from ndr.utils import calculate_pad_length, pad as ndr_pad
+from rpc.utils.types import DWORD
 
 from ms_rrp.operations import Operation
 from ms_rrp.structures.rrp_unicode_string import RRPUnicodeString
+from ms_rrp.structures.rpc_hkey import RpcHkey
 
 
 @dataclass
 class BaseRegSaveKeyResponse(ClientProtocolResponseBase):
-
-    @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegSaveKeyResponse:
-        return cls(return_code=Win32ErrorCode(cls._RETURN_CODE_STRUCT.unpack_from(buffer=data, offset=base_offset)[0]))
-
-    def __bytes__(self) -> bytes:
-        return self._RETURN_CODE_STRUCT.pack(self.return_code)
-
-    def __len__(self) -> int:
-        return self._RETURN_CODE_STRUCT.size
+    _STRUCTURE: ClassVar[dict[str, tuple[...]]] = {
+        'return_code': (DWORD, Win32ErrorCode)
+    }
 
 
 @dataclass
 class BaseRegSaveKeyRequest(ClientProtocolRequestBase):
     OPERATION: ClassVar[Operation] = Operation.BASE_REG_SAVE_KEY
 
-    _KEY_HANDLE_STRUCT: ClassVar[Struct] = Struct('20s')
+    _STRUCTURE: ClassVar[dict[str, tuple[...]]] = {
+        'key_handle': (RpcHkey,),
+        'save_path': (RRPUnicodeString,),
+        'security_attributes': (Pointer, RPCSecurityAttributes)
+    }
 
     key_handle: bytes
-    save_path: Union[str, PureWindowsPath]
     security_attributes: RPCSecurityAttributes = RPCSecurityAttributes()
-
-    @classmethod
-    def from_bytes(cls, data: ByteString, base_offset: int = 0) -> BaseRegSaveKeyRequest:
-        data = memoryview(data)[base_offset:]
-        offset = 0
-
-        key_handle: bytes = cls._KEY_HANDLE_STRUCT.unpack_from(buffer=data, offset=base_offset)[0]
-        offset += cls._KEY_HANDLE_STRUCT.size
-
-        ndr_save_path = RRPUnicodeString.from_bytes(data=data, base_offset=offset)
-        offset += calculate_pad_length(length_unpadded=len(ndr_save_path))
-
-        security_attributes_ndr_pointer = Pointer.from_bytes(data=data, base_offset=offset)
-        offset += Pointer.structure_size
-        security_attributes = RPCSecurityAttributes.from_bytes(data=security_attributes_ndr_pointer.representation)
-        offset += calculate_pad_length(length_unpadded=len(security_attributes))
-
-        return cls(
-            key_handle=key_handle,
-            save_path=ndr_save_path.representation,
-            security_attributes=security_attributes
-        )
-
-    def __bytes__(self) -> bytes:
-        return b''.join([
-            self.key_handle,
-            ndr_pad(bytes(RRPUnicodeString(representation=str(self.save_path)))),
-            bytes(Pointer(representation=bytes(self.security_attributes)))
-        ])
 
 
 BaseRegSaveKeyResponse.REQUEST_CLASS = BaseRegSaveKeyRequest
